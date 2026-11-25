@@ -12,27 +12,6 @@ This document describes how to design, implement, validate, and time the **seque
 
 Keep shared math logic separate from the execution drivers so serial, MPI, OpenMP, and hybrid versions execute the **exact same integrand and quadrature kernel**:
 
-```text
-src/
-├── common/
-│   ├── gauss_legendre.h      # Node/weight generation API and QuadratureRule struct
-│   ├── gauss_legendre.c      # Newton-Raphson solver for Legendre roots & weights
-│   ├── integrands.h          # Registry of test functions (1D, 3D, irregular) + exact values
-│   ├── integrands.c          # Analytical test functions & metadata
-│   └── timer.h               # Portable wall-clock timer (gettimeofday / clock_gettime)
-├── serial/
-│   └── main_serial.c         # Serial CLI driver (1D composite, 3D composite, adaptive)
-├── mpi/
-│   ├── main_mpi_static.c     # Stage 1A: Pure MPI static domain decomposition
-│   └── main_mpi_dynamic.c    # Stage 1B: Pure MPI dynamic master-worker / adaptive
-├── omp/
-│   └── main_omp.c            # Stage 2: Pure OpenMP (static/dynamic/guided + coarse/fine)
-└── hybrid/
-    └── main_hybrid.c         # Stage 3: Hybrid MPI + OpenMP
-```
-
----
-
 ## 2. Core Data Structures
 
 ```c
