@@ -26,7 +26,8 @@ int main (int argc, char** argv) {
         &gauss_rule
     );
 
-    printf("result: %.15f\n", res);
+    printf("result: %.15f (exact: %.15f, err: %.3e)\n",
+           res, integrand->exact_value, fabs(res - integrand->exact_value));
 
     gauss_rule_free(&gauss_rule);
     return 0;
