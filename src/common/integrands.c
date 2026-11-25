@@ -16,7 +16,7 @@ static const Integrand1D table_1d[] = {
 };
 
 const Integrand1D* get_integrand_1d(FunctionId id) {
-    if (id <= 0 || id > (int) (sizeof(table_1d) / sizeof(table_1d[0]))) {
+    if (id < 0 || id > (int) (sizeof(table_1d) / sizeof(table_1d[0]))) {
         return NULL;
     }
 

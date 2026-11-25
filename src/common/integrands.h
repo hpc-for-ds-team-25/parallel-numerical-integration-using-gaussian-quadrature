@@ -2,7 +2,7 @@
 #define INTEGRANDS_H
 
 typedef double (*Integrand1DFn)(double x);
-typedef double (*Integrannd3DFn)(double x, double y, double z);
+typedef double (*Integrand3DFn)(double x, double y, double z);
 
 typedef enum {
     FUNC_POLY,
@@ -20,6 +20,6 @@ typedef struct {
     double exact_value;
 } Integrand1D;
 
-const Integrand1D *integrant_1d_get(FunctionId id);
+const Integrand1D *get_integrand_1d(FunctionId id);
 
 #endif
