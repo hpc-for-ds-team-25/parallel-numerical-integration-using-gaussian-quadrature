@@ -2,15 +2,18 @@
 #include <stdio.h>
 #include <math.h>
 
+#include "common/cli.h"
 #include "common/gauss_rule.h"
 #include "common/integrands.h"
+#include "common/integration_config.h"
+#include "common/timer.h"
 
 double integrate_1d_composite(
     Integrand1DFn func,
     double a,
     double b,
     long long num_panels,
-    GaussRule* rule
+    const GaussRule* rule
 );
 
 double integrate_3d_composite(
@@ -31,53 +34,62 @@ double integrate_1d_adaptive(
     const GaussRule* rule
 );
 
-int main (int argc, char** argv) {
-    GaussRule gauss_rule;
-    gauss_rule_init(&gauss_rule, 8);
+int main(int argc, char** argv) {
+    IntegrationConfig cfg;
+    int cli_status = parse_cli(argc, argv, &cfg);
+    if (cli_status != 0) {
+        return cli_status > 0 ? EXIT_SUCCESS : EXIT_FAILURE;
+    }
 
-    const Integrand1D* integrand = get_integrand_1d(FUNC_POLY);
-    double res = integrate_1d_composite(
-        integrand->integrand_fn,
-        integrand->default_a,
-        integrand->default_b,
-        1,
-        &gauss_rule
-    );
+    const Integrand1D* integ_1d = NULL;
+    const Integrand3D* integ_3d = NULL;
+    const char* func_name = NULL;
+    double exact_value = 0.0;
 
-    printf("1D (%s): %.15f (exact: %.15f, err: %.3e)\n",
-           integrand->name, res, integrand->exact_value,
-           fabs(res - integrand->exact_value));
+    if (cfg.mode == MODE_3D) {
+        integ_3d = get_integrand_3d(cfg.function_id);
+        func_name = integ_3d->name;
+        exact_value = integ_3d->exact_value;
+    } else {
+        integ_1d = get_integrand_1d(cfg.function_id);
+        func_name = integ_1d->name;
+        exact_value = integ_1d->exact_value;
+    }
 
-    const Integrand3D* integrand_3d = get_integrand_3d(FUNC_HEAVY_3D);
-    double res_3d = integrate_3d_composite(
-        integrand_3d->integrand_fn,
-        integrand_3d->default_a,
-        integrand_3d->default_b,
-        4,
-        &gauss_rule
-    );
+    if (cfg.print_header) {
+        print_csv_header();
+    }
 
-    printf("3D (%s): %.15f (exact: %.15f, err: %.3e)\n",
-           integrand_3d->name, res_3d, integrand_3d->exact_value,
-           fabs(res_3d - integrand_3d->exact_value));
+    for (int run = 1; run <= cfg.repeats; ++run) {
+        GaussRule rule;
+        double t0 = wall_time();
+        gauss_rule_init(&rule, cfg.order);
+        double t1 = wall_time();
 
-    const Integrand1D* peak = get_integrand_1d(FUNC_PEAK_1D);
-    double res_adapt = integrate_1d_adaptive(
-        peak->integrand_fn,
-        peak->default_a,
-        peak->default_b,
-        1000,
-        1e-12,
-        30,
-        &gauss_rule
-    );
+        double result = 0.0;
+        if (cfg.mode == MODE_1D) {
+            result = integrate_1d_composite(
+                integ_1d->integrand_fn, cfg.a, cfg.b, cfg.subintervals_count, &rule
+            );
+        } else if (cfg.mode == MODE_3D) {
+            result = integrate_3d_composite(
+                integ_3d->integrand_fn, cfg.a, cfg.b, cfg.subintervals_count, &rule
+            );
+        } else {
+            result = integrate_1d_adaptive(
+                integ_1d->integrand_fn, cfg.a, cfg.b, cfg.subintervals_count,
+                cfg.tol, cfg.max_depth, &rule
+            );
+        }
+        double t2 = wall_time();
 
-    printf("Adaptive (%s): %.15f (exact: %.15f, err: %.3e)\n",
-           peak->name, res_adapt, peak->exact_value,
-           fabs(res_adapt - peak->exact_value));
+        double abs_error = fabs(result - exact_value);
+        print_csv_row("serial", &cfg, func_name, 1, 1, run, t1 - t0, t2 - t1, result, abs_error);
 
-    gauss_rule_free(&gauss_rule);
-    return 0;
+        gauss_rule_free(&rule);
+    }
+
+    return EXIT_SUCCESS;
 }
 
 double integrate_1d_composite(
@@ -85,7 +97,7 @@ double integrate_1d_composite(
     double a,
     double b,
     long long num_panels,
-    GaussRule* rule
+    const GaussRule* rule
 ) {
     double h = (b-a)/(double)num_panels;    // width of a panel
     double half_h = 0.5 * h;                // half width of the panel
